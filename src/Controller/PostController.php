@@ -32,7 +32,6 @@ class PostController extends AbstractController
         $this->serializer = $serializer;
     }
 
-
     #[Route('/api/posts', name: 'app_post', methods: 'GET')]
     public function index(): Response
     {
@@ -53,6 +52,8 @@ class PostController extends AbstractController
         $form->submit($data);
 
         if ($form->isSubmitted() && $form->isValid()){
+
+            $post->setAuthor($this->getUser());
 
             $this->entityManager->persist($post);
             $this->entityManager->flush();
