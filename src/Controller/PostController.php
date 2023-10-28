@@ -4,29 +4,29 @@ namespace App\Controller;
 
 use App\Entity\Post;
 use App\Form\PostType;
-use App\Repository\PostRepository;
+use App\Service\PostNotification;
 use App\Service\PostService;
 use App\Validation\ValidationError;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Serializer\SerializerInterface;
 
 class PostController extends AbstractController
 {
 
     private PostService $postService;
+    private PostNotification $postNotification;
 
     /**
      * @param PostService $postService
      */
-    public function __construct(PostService $postService)
+    public function __construct(PostService $postService, PostNotification $postNotification)
     {
         $this->postService = $postService;
+        $this->postNotification = $postNotification;
     }
 
 
@@ -36,6 +36,9 @@ class PostController extends AbstractController
         return new Response($this->postService->getAllPosts(), 200);
     }
 
+    /**
+     * @throws TransportExceptionInterface
+     */
     #[Route('/api/post/add', name: 'app_post_add', methods: 'POST')]
     public function addPost(Request $request, ValidationError $validationError): Response
     {
@@ -52,6 +55,8 @@ class PostController extends AbstractController
             $user = $this->getUser();
 
             $this->postService->createPost($post, $user);
+
+            $this->postNotification->sendNotification('team@devphantom.com');
 
             return new JsonResponse([
                 'success' => true,
