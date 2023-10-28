@@ -5,6 +5,8 @@ namespace App\Controller;
 use App\Entity\Post;
 use App\Form\PostType;
 use App\Repository\PostRepository;
+use App\Service\PostService;
+use App\Validation\ValidationError;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -17,31 +19,25 @@ use Symfony\Component\Serializer\SerializerInterface;
 class PostController extends AbstractController
 {
 
-    private EntityManagerInterface $entityManager;
-    private PostRepository $postRepository;
-    private SerializerInterface $serializer;
+    private PostService $postService;
 
     /**
-     * @param EntityManagerInterface $entityManager
-     * @param PostRepository $postRepository
+     * @param PostService $postService
      */
-    public function __construct(EntityManagerInterface $entityManager, PostRepository $postRepository, SerializerInterface $serializer)
+    public function __construct(PostService $postService)
     {
-        $this->entityManager = $entityManager;
-        $this->postRepository = $postRepository;
-        $this->serializer = $serializer;
+        $this->postService = $postService;
     }
+
 
     #[Route('/api/posts', name: 'app_post', methods: 'GET')]
     public function index(): Response
     {
-        $posts = $this->postRepository->findAll();
-        $posts_jsn = $this->serializer->serialize($posts, 'json');
-        return new Response($posts_jsn, 200);
+        return new Response($this->postService->getAllPosts(), 200);
     }
 
     #[Route('/api/post/add', name: 'app_post_add', methods: 'POST')]
-    public function addPost(Request $request): Response
+    public function addPost(Request $request, ValidationError $validationError): Response
     {
         $data = json_decode($request->getContent(), true);
 
@@ -53,10 +49,9 @@ class PostController extends AbstractController
 
         if ($form->isSubmitted() && $form->isValid()){
 
-            $post->setAuthor($this->getUser());
+            $user = $this->getUser();
 
-            $this->entityManager->persist($post);
-            $this->entityManager->flush();
+            $this->postService->createPost($post, $user);
 
             return new JsonResponse([
                 'success' => true,
@@ -64,7 +59,8 @@ class PostController extends AbstractController
             ], 201);
         }
 
-        $errors = $this->getErrorsFromForms($form);
+        $errors = $validationError->getErrorsFromForms($form);
+
         $error_data = [
             'success' => 'false',
             'type' => 'validation_error',
@@ -75,27 +71,9 @@ class PostController extends AbstractController
         return new JsonResponse($error_data, 400);
     }
 
-    private function getErrorsFromForms(FormInterface $form): array
-    {
-        $errors = array();
-
-        foreach ($form->getErrors() as $error){
-            $errors[] = $error->getMessage();
-        }
-
-        foreach ($form->all() as $childForm){
-            if ($childForm instanceof FormInterface){
-                $errors[$childForm->getName()] = $childForm;
-            }
-        }
-
-        return $errors;
-    }
-
     #[Route('/api/post/{id}', name: 'app_post_view', methods: 'GET')]
     public function viewPost(Post $post): Response
     {
-        $post_jsn = $this->serializer->serialize($post, 'json');
-        return new Response($post_jsn, 200);
+        return new Response($this->postService->getSinglePost($post), 200);
     }
 }

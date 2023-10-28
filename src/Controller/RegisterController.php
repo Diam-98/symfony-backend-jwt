@@ -6,20 +6,18 @@ use App\Entity\User;
 use App\Form\UserType;
 use App\Repository\UserRepository;
 use App\Service\UserService;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Validation\ValidationError;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
-use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Serializer\SerializerInterface;
 
 class RegisterController extends AbstractController
 {
     #[Route('/api/register', name: 'app_register', methods: 'POST')]
-    public function index(Request $request, SerializerInterface $serializer, UserRepository $userRepository, UserService $userService): Response
+    public function index(Request $request, SerializerInterface $serializer, UserRepository $userRepository, UserService $userService, ValidationError $validationError): Response
     {
         $data = json_decode($request->getContent(), true);
 
@@ -49,7 +47,7 @@ class RegisterController extends AbstractController
             return new Response($resp_json, 201);
         }
 
-        $errors = $this->getErrorsFromForms($form);
+        $errors = $validationError->getErrorsFromForms($form);
 
         $error_data = [
             'success' => 'false',
@@ -61,20 +59,4 @@ class RegisterController extends AbstractController
         return new JsonResponse($error_data, 400);
     }
 
-    private function getErrorsFromForms(FormInterface $form): array
-    {
-        $errors = array();
-
-        foreach ($form->getErrors() as $error){
-            $errors[] = $error->getMessage();
-        }
-
-        foreach ($form->all() as $childForm){
-            if ($childForm instanceof FormInterface){
-                $errors[$childForm->getName()] = $childForm;
-            }
-        }
-
-        return $errors;
-    }
 }
