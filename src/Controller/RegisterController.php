@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Form\UserType;
 use App\Repository\UserRepository;
+use App\Service\UserService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\Form\FormInterface;
@@ -18,7 +19,7 @@ use Symfony\Component\Serializer\SerializerInterface;
 class RegisterController extends AbstractController
 {
     #[Route('/api/register', name: 'app_register', methods: 'POST')]
-    public function index(Request $request, EntityManagerInterface $entityManager, SerializerInterface $serializer, UserRepository $userRepository, UserPasswordHasherInterface $passwordHasher): Response
+    public function index(Request $request, SerializerInterface $serializer, UserRepository $userRepository, UserService $userService): Response
     {
         $data = json_decode($request->getContent(), true);
 
@@ -30,19 +31,14 @@ class RegisterController extends AbstractController
 
         if ($form->isSubmitted()){
 
-            $exist_user = $userRepository->findOneBy(['email' => $user->getEmail()]);
-
-            if ($exist_user){
+            if ($userService->isUserExist($user->getEmail())){
                 return new JsonResponse([
                     'status'=>false,
                     'message'=>'Cet email existe deja!'
                 ], 401);
             }
 
-            $user->setPassword($passwordHasher->hashPassword($user, $user->getPassword()));
-
-            $entityManager->persist($user);
-            $entityManager->flush();
+            $userService->addUser($user);
 
             $response = [
                 'success' => true,
